@@ -1,0 +1,1214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>F1 AI Race Engineer — Sprint Tracker</title>
+<style>
+:root {
+  --bg: #07070e;
+  --surface: #0d0d1c;
+  --surface2: #111125;
+  --border: #1a1a2e;
+  --border2: #22223a;
+  --text: #e0e0f0;
+  --muted: #5a5a80;
+  --muted2: #3a3a60;
+  --green: #10b981;
+  --green-dim: #0a2010;
+  --blue: #3b82f6;
+  --blue-bright: #60a5fa;
+  --amber: #f59e0b;
+  --red: #ef4444;
+  --purple: #a855f7;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+
+/* ── DASHBOARD ── */
+#dashboard{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  background:rgba(7,7,14,.96);
+  backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--border);
+  transition:transform .3s cubic-bezier(.4,0,.2,1);
+  transform:translateY(0);
+}
+#dash-top{
+  display:flex;align-items:center;gap:12px;
+  padding:.75rem 1.25rem;cursor:pointer;
+  user-select:none;
+}
+#dash-top:hover{background:rgba(255,255,255,.02)}
+.dash-title{font-size:13px;font-weight:600;color:var(--text);flex:1}
+.dash-sync{font-size:11px;padding:2px 8px;border-radius:10px;border:1px solid;flex-shrink:0;transition:all .3s}
+.sync-ok{color:var(--green);border-color:#10b98140;background:#0a1a10}
+.sync-off{color:var(--muted);border-color:#2a2a4040;background:transparent}
+.sync-loading{color:var(--amber);border-color:#f59e0b40;background:#1a1200}
+#dash-chevron{font-size:11px;color:var(--muted);transition:transform .3s;flex-shrink:0}
+#dash-chevron.open{transform:rotate(180deg)}
+
+#dash-body{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:.75rem;
+  padding:0 1.25rem .875rem;
+  overflow:hidden;
+  max-height:0;
+  transition:max-height .35s ease, padding .35s ease, opacity .3s ease;
+  opacity:0;
+}
+#dash-body.open{max-height:300px;opacity:1;padding:.75rem 1.25rem .875rem}
+
+.dash-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:10px;padding:.625rem .875rem;
+  transition:border-color .2s;
+}
+.dash-card:hover{border-color:var(--border2)}
+.dc-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:4px}
+.dc-value{font-size:22px;font-weight:700;line-height:1;margin-bottom:2px}
+.dc-sub{font-size:11px;color:var(--muted)}
+
+.big-ring{position:relative;width:60px;height:60px;flex-shrink:0}
+.ring-svg{width:60px;height:60px;transform:rotate(-90deg)}
+.ring-bg{fill:none;stroke:var(--border);stroke-width:5}
+.ring-fill{fill:none;stroke-width:5;stroke-linecap:round;transition:stroke-dashoffset .8s cubic-bezier(.4,0,.2,1)}
+.ring-pct{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:12px;font-weight:700;color:var(--text)}
+
+.streak-dots{display:flex;gap:3px;margin-top:6px;flex-wrap:wrap}
+.s-dot{width:10px;height:10px;border-radius:2px;background:var(--border);transition:background .2s}
+.s-dot.hot{background:var(--amber)}
+.s-dot.cold{background:var(--border)}
+
+.schedule-bar{height:6px;background:var(--border);border-radius:3px;margin-top:8px;overflow:hidden}
+.schedule-fill{height:100%;border-radius:3px;transition:width .6s ease}
+.ahead{background:var(--green)}
+.behind{background:var(--red)}
+.ontarget{background:var(--blue)}
+
+/* ── MAIN LAYOUT ── */
+#main{padding:1rem 1.25rem 3rem;padding-top:calc(1rem + 48px)}
+
+.page-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:1rem;flex-wrap:wrap}
+.page-title{font-size:18px;font-weight:600;color:var(--text)}
+.page-meta{font-size:11px;color:var(--muted);margin-top:2px}
+
+
+
+/* ── FILTER BAR ── */
+.fbar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:1rem}
+.fbtn{
+  font-size:11px;font-weight:500;padding:4px 12px;
+  border-radius:16px;border:1px solid var(--border2);
+  background:var(--surface);color:var(--muted);cursor:pointer;
+  transition:all .15s;
+}
+.fbtn:hover{border-color:#3a3a60;color:var(--text)}
+.fbtn.on{background:#fff;color:var(--bg);border-color:#fff}
+
+/* ── WEEK CARDS ── */
+.week-card{
+  border:1px solid var(--border);border-radius:14px;
+  overflow:hidden;margin-bottom:.75rem;
+  transition:border-color .2s, box-shadow .2s;
+  animation:slideIn .3s ease both;
+}
+.week-card:hover{border-color:var(--border2)}
+.week-card.week-done{border-color:#10b98130}
+.week-card.week-done:hover{border-color:#10b98160}
+
+@keyframes slideIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+.week-head{
+  display:flex;align-items:center;gap:10px;
+  padding:.875rem 1rem;cursor:pointer;
+  background:var(--surface);user-select:none;
+  transition:background .15s;
+}
+.week-head:hover{background:var(--surface2)}
+.week-card.week-done .week-head{background:#0a150a}
+
+.week-num{
+  font-size:10px;font-weight:700;color:#fff;
+  background:#1565C0;border-radius:6px;
+  padding:3px 8px;flex-shrink:0;transition:background .3s;
+}
+.week-done .week-num{background:var(--green)}
+
+.week-info{flex:1;min-width:0}
+.week-title-txt{font-size:13px;font-weight:500;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.week-dates-txt{font-size:11px;color:var(--muted2);margin-top:1px}
+
+.prog{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.prog-bar{width:52px;height:3px;background:var(--border);border-radius:2px;overflow:hidden}
+.prog-fill{height:100%;border-radius:2px;background:var(--green);transition:width .4s ease}
+.prog-txt{font-size:10px;color:var(--muted2);min-width:28px;text-align:right}
+
+.done-badge{
+  font-size:9px;font-weight:700;color:var(--green);
+  background:var(--green-dim);border:1px solid #10b98130;
+  border-radius:8px;padding:2px 7px;flex-shrink:0;
+}
+.chev{font-size:10px;color:var(--muted2);transition:transform .25s;flex-shrink:0}
+.chev.open{transform:rotate(180deg)}
+
+/* ── WEEK BODY ── */
+.week-body{
+  max-height:0;overflow:hidden;
+  transition:max-height .4s cubic-bezier(.4,0,.2,1);
+  background:#090912;
+}
+.week-body.open{max-height:2000px}
+
+.sup-box{
+  margin:.875rem .875rem .625rem;padding:.625rem .875rem;
+  background:#0a1528;border:1px solid #1565C030;
+  border-left:3px solid #1565C0;border-radius:8px;
+  font-size:12px;color:#90CAF9;
+  animation:fadeIn .3s ease .1s both;
+}
+.sup-box b{color:#42A5F5;font-size:9px;text-transform:uppercase;letter-spacing:.08em;display:block;margin-bottom:3px}
+
+.tracks{display:grid;grid-template-columns:1fr 1fr;gap:.625rem;padding:0 .875rem .875rem;animation:fadeIn .3s ease .15s both}
+@media(max-width:600px){.tracks{grid-template-columns:1fr}}
+
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+
+.track{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:.625rem .75rem;min-width:0}
+.track-head{font-size:11px;font-weight:600;margin-bottom:.5rem;display:flex;align-items:center;gap:6px}
+.track-badge{font-size:9px;font-weight:700;padding:2px 7px;border-radius:8px;border:1px solid;white-space:nowrap}
+.tb-learn  {color:#5b9bf6;border-color:#3b82f640;background:#0a0f1a}
+.tb-build  {color:#30d9a1;border-color:#10b98140;background:#0a1a12}
+.tb-design {color:#c084fc;border-color:#a855f740;background:#120a1a}
+.tb-write  {color:#fbbf24;border-color:#f59e0b40;background:#1a1200}
+.tb-validate{color:#34d399;border-color:#10b98140;background:#0a1a12}
+.tb-polish {color:#34d399;border-color:#10b98140;background:#0a1a12}
+.tb-final  {color:#fbbf24;border-color:#f59e0b40;background:#1a1200}
+.track-title{font-size:11px;font-weight:500;color:#b0b0d0;line-height:1.3}
+
+/* ── TASKS ── */
+.task-item{padding:3px 0;border-bottom:1px solid #0c0c1a}
+.task-item:last-child{border-bottom:none}
+.task-row{
+  display:flex;align-items:flex-start;gap:6px;
+  cursor:pointer;padding:2px 0;
+  border-radius:4px;transition:background .1s;
+}
+.task-row:hover{background:rgba(255,255,255,.03)}
+.task-row:active{background:rgba(255,255,255,.05)}
+
+.cb{
+  width:14px;height:14px;border:1px solid #2a2a44;
+  border-radius:3px;flex-shrink:0;margin-top:2px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:9px;color:var(--green);
+  transition:all .15s;
+}
+.cb.checked{background:var(--green-dim);border-color:var(--green)}
+
+.task-text{font-size:12px;color:#9090b8;line-height:1.5;flex:1;transition:all .2s}
+.task-text.done-text{color:#2a4a2a;text-decoration:line-through;text-decoration-color:#1a3a1a}
+.task-out{font-size:11px;color:#2a6040;margin-left:20px;margin-bottom:2px;font-style:italic;transition:color .2s}
+.task-out.done-out{color:#1a3a20}
+
+/* ── TOAST ── */
+#toast{
+  position:fixed;bottom:1.5rem;right:1.5rem;z-index:999;
+  background:var(--surface2);border:1px solid var(--border2);
+  border-radius:10px;padding:.625rem 1rem;
+  font-size:13px;color:var(--text);
+  display:flex;align-items:center;gap:8px;
+  box-shadow:0 8px 24px rgba(0,0,0,.4);
+  transform:translateY(80px);opacity:0;
+  transition:all .3s cubic-bezier(.34,1.56,.64,1);
+  pointer-events:none;max-width:300px;
+}
+#toast.show{transform:translateY(0);opacity:1}
+.toast-icon{font-size:16px;flex-shrink:0}
+
+/* ── CONFETTI PARTICLE ── */
+.confetti-dot{
+  position:fixed;pointer-events:none;z-index:998;
+  width:6px;height:6px;border-radius:2px;
+  animation:confettiFall 1.2s ease forwards;
+}
+@keyframes confettiFall{
+  0%{transform:translateY(0) rotate(0deg);opacity:1}
+  100%{transform:translateY(120px) rotate(720deg);opacity:0}
+}
+
+
+</style>
+</head>
+<body>
+
+<!-- ── STICKY DASHBOARD ── -->
+<div id="dashboard">
+  <div id="dash-top" onclick="toggleDash()">
+    <span class="dash-title">🏎 F1 AI Race Engineer — Sprint Tracker</span>
+    <span class="dash-sync sync-off" id="sync-badge">⚫ Offline</span>
+    <span id="dash-chevron">▼</span>
+  </div>
+  <div id="dash-body">
+    <!-- Overall progress ring -->
+    <div class="dash-card" style="display:flex;align-items:center;gap:12px">
+      <div class="big-ring">
+        <svg class="ring-svg" viewBox="0 0 60 60">
+          <circle class="ring-bg" cx="30" cy="30" r="26"/>
+          <circle class="ring-fill" id="ring-fill" cx="30" cy="30" r="26"
+            stroke="#10b981"
+            stroke-dasharray="163.36"
+            stroke-dashoffset="163.36"/>
+        </svg>
+        <div class="ring-pct" id="ring-pct">0%</div>
+      </div>
+      <div>
+        <div class="dc-label">Overall progress</div>
+        <div class="dc-sub" id="overall-tasks-done">0 / 0 tasks</div>
+        <div class="dc-sub" style="margin-top:2px" id="overall-weeks-done">0 / 20 weeks</div>
+      </div>
+    </div>
+
+    <!-- Schedule indicator -->
+    <div class="dash-card">
+      <div class="dc-label">Schedule</div>
+      <div class="dc-value" id="sched-label" style="font-size:16px;margin-bottom:6px">—</div>
+      <div class="schedule-bar"><div class="schedule-fill" id="sched-fill" style="width:0%"></div></div>
+      <div class="dc-sub" style="margin-top:4px" id="sched-sub">Calculating...</div>
+    </div>
+
+    <!-- Streak -->
+    <div class="dash-card">
+      <div class="dc-label">Daily streak</div>
+      <div style="display:flex;align-items:baseline;gap:6px">
+        <div class="dc-value" id="streak-val" style="color:var(--amber)">0</div>
+        <div class="dc-sub">days 🔥</div>
+      </div>
+      <div class="streak-dots" id="streak-dots"></div>
+      <div class="dc-sub" style="margin-top:4px" id="streak-sub">Tick any task to keep your streak alive 🔥</div>
+    </div>
+
+    <!-- This week -->
+    <div class="dash-card">
+      <div class="dc-label">This week</div>
+      <div class="dc-value" id="this-week-pct" style="color:var(--blue)">—</div>
+      <div class="dc-sub" id="this-week-label">Week —</div>
+      <div class="prog-bar" style="width:100%;margin-top:8px">
+        <div class="prog-fill" id="this-week-bar" style="width:0%;background:var(--blue)"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── MAIN ── -->
+<div id="main">
+  <div class="page-head">
+    <div>
+      <div class="page-title">Weekly Sprint Tracker</div>
+      <div class="page-meta">26 Apr – 30 Sep 2025 &nbsp;·&nbsp; FastF1 only, 2018–2026 &nbsp;·&nbsp; Every week has parallel tracks</div>
+    </div>
+  </div>
+
+  <div class="fbar" id="fbar"></div>
+  <div id="root"></div>
+</div>
+
+<!-- ── TOAST ── -->
+<div id="toast"><span class="toast-icon" id="toast-icon">✓</span><span id="toast-msg"></span></div>
+
+<script type="module">
+// ─────────────────────────────────────────────────────────────────────────────
+// SPRINT DATA
+// ─────────────────────────────────────────────────────────────────────────────
+const SPRINTS = [
+  {week:1,dates:"26 Apr - 02 May",title:"F1 Strategy Foundations + FastF1 First Contact",
+   sup:"FastF1 installed, first race session loaded, lap dataframe printed. 2-page strategy notes.",
+   tracks:[
+    {type:"learn",label:"Learn",title:"F1 Strategy Basics",tasks:[
+      {s:"todo",task:"Read: one-stop vs two-stop logic - why baseline strategies are chosen pre-race",out:"Half page written notes"},
+      {s:"todo",task:"Read: undercut logic - plain English, no equations",out:"Half page written notes"},
+      {s:"todo",task:"Read: overcut logic - when dirty air makes it powerful",out:"Half page written notes"},
+      {s:"todo",task:"Write: list of ALL decisions a race engineer makes during a race",out:"Master decision list - becomes your MDP action space later"},
+      {s:"todo",task:"Read: track position value - Monaco vs Bahrain examples",out:"Half page notes with 3 circuit examples"}
+    ]},
+    {type:"build",label:"Build",title:"FastF1 Setup and First Data Exploration",tasks:[
+      {s:"todo",task:"Install FastF1: pip install fastf1",out:"Working install confirmed"},
+      {s:"todo",task:"Set up FastF1 cache directory with at least 50GB space",out:"Cache path configured"},
+      {s:"todo",task:"Load one race session e.g. Bahrain 2023 Race",out:"Session object loaded without errors"},
+      {s:"todo",task:"Print the laps dataframe - explore every column",out:"Annotated column list: what each column means"},
+      {s:"todo",task:"Print 5 rows of tyre/stint data - note compound and tyre_age columns",out:"Understanding of how FastF1 structures stint data"},
+      {s:"todo",task:"Plot: lap times over the race for one driver",out:"First chart - screenshot to show supervisor"}
+    ]}
+  ]},
+  {week:2,dates:"03 May - 09 May",title:"SC/VSC Strategy + FastF1 Lap Extraction",
+   sup:"SC lap flagging working in code. Lap data extracted and saved as Parquet for one full race.",
+   tracks:[
+    {type:"learn",label:"Learn",title:"Safety Car, VSC, and Pit Timing Logic",tasks:[
+      {s:"todo",task:"Read: why SC pit stops are cheap - the time math",out:"Written explanation with numbers"},
+      {s:"todo",task:"Read: VSC vs SC - the mathematical difference in pit cost",out:"Side-by-side comparison table"},
+      {s:"todo",task:"Write: pit both / pit one / pit none decision logic",out:"Decision tree sketch"},
+      {s:"todo",task:"Read: what is a pit window? What is pit lane time loss?",out:"Definition + typical values per circuit type"},
+      {s:"todo",task:"Study 1 real race where SC changed the outcome e.g. Abu Dhabi 2021",out:"1-page case study: what happened, who benefited, why"}
+    ]},
+    {type:"build",label:"Build",title:"FastF1 Lap Extraction and SC Flagging",tasks:[
+      {s:"todo",task:"Write function: load_race_laps(year, circuit) using FastF1",out:"Clean reusable function"},
+      {s:"todo",task:"Filter: remove pit laps, SC laps (TrackStatus==4), VSC laps (TrackStatus==6), first lap",out:"Filtered DataFrame with row count logged"},
+      {s:"todo",task:"Flag SC laps: extract SC event table with start and end lap per SC period",out:"SC events DataFrame"},
+      {s:"todo",task:"Compute: lap_time_delta - each lap minus driver median on same compound at same circuit",out:"New column added and spot-checked"},
+      {s:"todo",task:"Save: one race as Parquet file to confirm storage pipeline works",out:"File saved and reloaded successfully"}
+    ]}
+  ]},
+  {week:3,dates:"10 May - 16 May",title:"Tyre Theory Write-Up + Monte Carlo Toy Simulation",
+   sup:"Working Monte Carlo toy simulation with histogram chart. Tyre multiplier assumptions document written.",
+   tracks:[
+    {type:"learn",label:"Learn",title:"Tyre Degradation Theory - Write Up Your Multipliers",tasks:[
+      {s:"done",task:"Tyre degradation multipliers per compound and circuit already defined",out:"DONE"},
+      {s:"todo",task:"Write: physics reason behind each circuit multiplier - abrasion, corner loading, temps",out:"1 paragraph per multiplier type - needed for dissertation methodology"},
+      {s:"todo",task:"Write: physics reason behind each compound multiplier - thermal window, structure",out:"1 paragraph per compound"},
+      {s:"todo",task:"Write: assumptions document - what does your multiplier model assume?",out:"1-page assumptions doc - critical for methodology chapter"},
+      {s:"todo",task:"Cross-check: does Bahrain have higher multiplier than Monaco? Soft higher than Hard?",out:"Validation notes - update any multiplier that fails the sense-check"}
+    ]},
+    {type:"build",label:"Build",title:"Monte Carlo Toy Simulation",tasks:[
+      {s:"todo",task:"Read: plain-English Monte Carlo explainer - 30 minutes max",out:"Can explain it out loud in 2 sentences"},
+      {s:"todo",task:"Code: simulate 10,000 dice rolls in Python",out:"Working script, 10 lines max"},
+      {s:"todo",task:"Plot: histogram of dice roll outcomes with matplotlib",out:"Chart saved as PNG - show supervisor"},
+      {s:"todo",task:"Add: a random event mid-game that changes the dice outcome",out:"Modified script - mirrors SC randomness in F1"},
+      {s:"todo",task:"Write: 1 paragraph connecting this toy simulation to F1 strategy uncertainty",out:"Written connection - paste directly into dissertation intro"}
+    ]}
+  ]},
+  {week:4,dates:"17 May - 23 May",title:"FIA Regulations + MDP Formulation + Download Pipeline Starts",
+   sup:"MDP state/action/reward written up with diagram. Constraint table complete. Download pipeline running.",
+   tracks:[
+    {type:"learn",label:"Learn",title:"FIA Regulations and MDP Theory",tasks:[
+      {s:"todo",task:"Download 2024 FIA Sporting Regulations PDF",out:"PDF saved locally"},
+      {s:"todo",task:"Extract: mandatory tyre rules - must use 2 compounds in dry race",out:"Rule copied + plain English rewrite + if-then constraint"},
+      {s:"todo",task:"Extract: SC pit lane speed limit, VSC rules, parc ferme constraints",out:"Constraint table: rule / trigger / blocked action"},
+      {s:"todo",task:"Read MDP intro - blog post or Sutton and Barto chapter 1",out:"Can explain state, action, reward, transition in your own words"},
+      {s:"todo",task:"Write: your F1 MDP - state variables, action space, reward function with your actual variable names",out:"1-page written MDP formulation"},
+      {s:"todo",task:"Draw: decision loop diagram - state in, action out, new state, reward",out:"Diagram - show supervisor"}
+    ]},
+    {type:"build",label:"Build",title:"Full Season Download Pipeline",tasks:[
+      {s:"todo",task:"Write download loop: for each season 2018-2026, for each race, load and cache session",out:"Download script with retry logic and progress logging"},
+      {s:"todo",task:"Start the download - this will take many hours, let it run overnight",out:"Download running, log file being written"},
+      {s:"todo",task:"While downloading: test 2018 session vs 2024 session - do columns match?",out:"Column comparison notes - flag gaps in older seasons"},
+      {s:"todo",task:"Write data_quality_flag logic: mark pre-2022 laps as lower confidence",out:"Flag column defined and documented"}
+    ]}
+  ]},
+  {week:5,dates:"24 May - 30 May",title:"Data Schema + Feature Spec + Download Verification",
+   sup:"Full data schema document. Feature engineering spec written. Download verified with row counts per season.",
+   tracks:[
+    {type:"design",label:"Design",title:"Data Architecture and Feature Engineering Spec",tasks:[
+      {s:"todo",task:"Write: table schema for lap_data - every column, type, and FastF1 source",out:"Schema document"},
+      {s:"todo",task:"Write: table schema for stint_data - every column, type, and source",out:"Schema document"},
+      {s:"todo",task:"Write: table schema for sc_events - every column, type, and source",out:"Schema document"},
+      {s:"todo",task:"Decide: Parquet vs SQLite for storage - write justification",out:"One paragraph decision with reasoning"},
+      {s:"todo",task:"Define: every derived feature - tyre_age, gap_ahead, gap_evolution, net_pit_value, sc_cost_reduction",out:"Feature spec: name / formula / FastF1 source / which model uses it"},
+      {s:"todo",task:"Define: traffic_penalty proxy - gap_ahead under 1s triggers multiplier",out:"Feature defined with threshold value"}
+    ]},
+    {type:"build",label:"Build",title:"Verify Download and Extract Full Dataset",tasks:[
+      {s:"todo",task:"Verify download: all seasons 2018-2026 have expected race counts",out:"Completeness report: season / races found / races expected"},
+      {s:"todo",task:"Run lap extraction loop across all seasons - save lap_data.parquet",out:"File saved, row count logged - expect 300k+ rows"},
+      {s:"todo",task:"Run stint extraction loop - compute expected_stint_length using your multipliers",out:"stint_data.parquet saved"},
+      {s:"todo",task:"Join weather data: AirTemp, TrackTemp, Rainfall from FastF1 to lap_data",out:"Merged dataset confirmed"},
+      {s:"todo",task:"Run data quality checks: nulls, outlier lap times, missing circuits",out:"Quality report - fix any issues"}
+    ]}
+  ]},
+  {week:6,dates:"31 May - 06 Jun",title:"Exploratory Data Analysis - Show the Supervisor Charts",
+   sup:"5-10 EDA charts: degradation curves, SC frequency, compound behaviour, pit timing by team. Your strongest supervisor meeting so far.",
+   tracks:[
+    {type:"build",label:"Build",title:"Exploratory Data Analysis",tasks:[
+      {s:"todo",task:"Plot: lap_time_delta vs tyre_age for Soft / Medium / Hard - does your multiplier ordering hold?",out:"3 overlaid degradation curves - key validation chart"},
+      {s:"todo",task:"Plot: lap_time_delta vs tyre_age per circuit - Bahrain vs Monaco difference",out:"Circuit comparison chart - validates circuit taxonomy"},
+      {s:"todo",task:"Plot: SC frequency per circuit as a bar chart",out:"SC frequency chart - validates your taxonomy SC likelihood column"},
+      {s:"todo",task:"Plot: pit stop timing distribution per team - mean and spread",out:"Team pit timing chart - feeds rival model later"},
+      {s:"todo",task:"Plot: rain frequency per circuit from FastF1 Rainfall data",out:"Rain probability chart per circuit"},
+      {s:"todo",task:"Write: 1 paragraph per chart explaining what it shows and how it feeds the model",out:"EDA narrative - paste straight into dissertation data chapter"}
+    ]},
+    {type:"design",label:"Design",title:"Validate and Update Circuit Taxonomy from Data",tasks:[
+      {s:"todo",task:"Compare: your manual degradation classification vs data-derived deg rates per circuit",out:"Table: circuit / your classification / data says / match?"},
+      {s:"todo",task:"Update any circuit taxonomy entries where data disagrees",out:"Updated taxonomy table with data-confidence flags"},
+      {s:"todo",task:"Compare: your SC likelihood classification vs actual SC frequency from data",out:"Validation table - update where needed"}
+    ]}
+  ]},
+  {week:7,dates:"07 Jun - 13 Jun",title:"Tyre Degradation Model - Train, Validate, Package",
+   sup:"Working tyre degradation predictor with R-squared score and validation plots. First real ML output.",
+   tracks:[
+    {type:"build",label:"Build",title:"Train the Tyre Degradation Model",tasks:[
+      {s:"todo",task:"Prepare training data: features = tyre_age, compound, circuit, AirTemp, TrackTemp, your multiplier",out:"Training DataFrame ready"},
+      {s:"todo",task:"Train baseline: linear regression - lap_time_delta vs tyre_age x your multiplier",out:"Model + R-squared - does your multiplier explain variance?"},
+      {s:"todo",task:"Train improved: add AirTemp and TrackTemp as additional features",out:"R-squared vs baseline"},
+      {s:"todo",task:"Train best: XGBoost or LightGBM for non-linear degradation patterns",out:"MAE score on test set"},
+      {s:"todo",task:"80/20 train/test split BY RACE - not random, no data leakage",out:"Split confirmed with race-level grouping"},
+      {s:"todo",task:"Compare all 3 models - pick winner and justify in writing",out:"Model comparison table"}
+    ]},
+    {type:"validate",label:"Validate",title:"Validate and Package the Degradation Predictor",tasks:[
+      {s:"todo",task:"Plot: predicted vs actual lap_time_delta over tyre age for 3 high-deg circuits",out:"3 validation plots"},
+      {s:"todo",task:"Plot: predicted vs actual for 3 low-deg circuits",out:"3 validation plots"},
+      {s:"todo",task:"Plot: residuals - are errors random or systematic?",out:"Residual plot"},
+      {s:"todo",task:"Test on held-out season e.g. 2023 - report out-of-sample MAE",out:"Generalisation score"},
+      {s:"todo",task:"Write function: predict_lap_time_delta(tyre_age, compound, circuit, air_temp, track_temp)",out:"Clean Python function with docstring"},
+      {s:"todo",task:"Write function: estimate_remaining_laps(current_delta, compound, circuit, threshold)",out:"Clean Python function with docstring"},
+      {s:"todo",task:"Save model with joblib. Write: where does data agree vs override your multipliers?",out:"Model file saved + half page dissertation text"}
+    ]}
+  ]},
+  {week:8,dates:"14 Jun - 20 Jun",title:"Race State + Simulation Engine Core",
+   sup:"Single-race deterministic simulation running end to end. Printed lap-by-lap trace to show supervisor.",
+   tracks:[
+    {type:"build",label:"Build",title:"Race State and Simulation Engine",tasks:[
+      {s:"todo",task:"Write RaceState dataclass: lap, position, tyre_age, compound, gap_ahead, gap_behind, is_sc, driver_id",out:"Clean Python dataclass with docstrings"},
+      {s:"todo",task:"Write: advance_one_lap(state) - update tyre_age, apply degradation predictor, update gaps",out:"Single lap update function"},
+      {s:"todo",task:"Write: action_pit(state, compound) - reset tyre_age, subtract pit_delta, update compound",out:"Pit action using per-circuit pit_delta from taxonomy"},
+      {s:"todo",task:"Write: action_stay_out(state) - calls advance_one_lap",out:"Stay out function"},
+      {s:"todo",task:"Hardcode FIA constraints: no same-compound pit, must pit at least once in dry race",out:"Constraint checks added"},
+      {s:"todo",task:"Run: simulate from lap 20 to end for one driver - print lap-by-lap state",out:"Printed trace output - screenshot for supervisor"}
+    ]},
+    {type:"learn",label:"Learn",title:"Strategy Concepts for Simulation Logic",tasks:[
+      {s:"todo",task:"Read: tyre warm-up laps - why cold tyres lose time on out-lap",out:"Half page - feeds into pit cost calculation"},
+      {s:"todo",task:"Read: double-stacking - when and why, implications for Driver 2",out:"Half page notes"},
+      {s:"todo",task:"Read: championship context - when teams conserve vs push",out:"Half page notes - feeds into risk mode logic"}
+    ]}
+  ]},
+  {week:9,dates:"21 Jun - 27 Jun",title:"Monte Carlo Engine + Strategy Comparison Output",
+   sup:"Monte Carlo running 1000 iterations. Strategy comparison table with win probabilities. Very showable.",
+   tracks:[
+    {type:"build",label:"Build",title:"Monte Carlo Wrapper and Strategy Comparison",tasks:[
+      {s:"todo",task:"Add SC probability injection: at each lap draw from per-circuit SC probability",out:"SC trigger code using taxonomy SC_likelihood"},
+      {s:"todo",task:"Add rival pit timing: draw from per-team pit timing distribution from Week 6 EDA",out:"Rival pit injection"},
+      {s:"todo",task:"Add tyre failure probability at extreme tyre ages e.g. 50+ laps on Soft at Bahrain",out:"Failure event code"},
+      {s:"todo",task:"Wrap simulation in loop: 1000 runs per strategy with different random seeds",out:"Loop running in under 60 seconds"},
+      {s:"todo",task:"Collect: final race position across all 1000 runs",out:"NumPy array per strategy"},
+      {s:"todo",task:"Compute: expected position, win probability, points probability per strategy",out:"3 numbers per strategy"},
+      {s:"todo",task:"Plot: overlapping histograms of position distributions for pit-now vs stay-out",out:"Comparison histogram - show supervisor"},
+      {s:"todo",task:"Output: ranked strategy table as a DataFrame",out:"DataFrame: strategy / exp_pos / win_pct / points_pct"}
+    ]}
+  ]},
+  {week:10,dates:"28 Jun - 04 Jul",title:"SC/VSC Logic + Driver Profile Integration",
+   sup:"SC decision logic working. Driver modifiers feeding into simulation. Side-by-side output for two different driver profiles.",
+   tracks:[
+    {type:"build",label:"Build",title:"SC and VSC Decision Logic",tasks:[
+      {s:"todo",task:"Compute: data-driven SC probability per circuit from 2018-2026 data",out:"Per-circuit SC probability table from real data"},
+      {s:"todo",task:"Implement: pit_delta cost reduction under SC - 22s becomes ~5s effective",out:"SC pit cost formula"},
+      {s:"todo",task:"Implement: pit both / pit one / pit none decision function",out:"Decision function with driver role awareness"},
+      {s:"todo",task:"Implement: VSC pit cost calculation - stricter than SC",out:"VSC pit math"},
+      {s:"todo",task:"Implement: TrackStatus routing - VSC vs SC vs normal lap",out:"Single entry point based on TrackStatus"},
+      {s:"todo",task:"Test: replay a real SC scenario - does model recommend the correct action?",out:"Test case with real race context"}
+    ]},
+    {type:"build",label:"Build",title:"Driver Profile Calibration from FastF1 Data",tasks:[
+      {s:"done",task:"Driver archetype system for rookies - DONE",out:"DONE"},
+      {s:"done",task:"Circuit taxonomy table validated in Week 6 - DONE",out:"DONE"},
+      {s:"todo",task:"For each driver with 20+ starts: compute degradation rate vs fleet average",out:"Driver degradation modifier per driver"},
+      {s:"todo",task:"Compute: lap variance per driver - standard deviation of lap_time_delta",out:"Consistency metric per driver"},
+      {s:"todo",task:"Compute: pace in dirty air vs clean air when gap_ahead under 1 second",out:"Traffic sensitivity modifier per driver"},
+      {s:"todo",task:"Add driver_degradation_modifier to degradation predictor call in simulation",out:"Updated simulation function"},
+      {s:"todo",task:"Test: simulate same race with two very different driver profiles",out:"Side-by-side comparison - show supervisor"}
+    ]}
+  ]},
+  {week:11,dates:"05 Jul - 11 Jul",title:"Rival Strategy + Weather Logic",
+   sup:"Undercut/overcut logic working. Rain crossover detection from FastF1 data. Full pipeline demo.",
+   tracks:[
+    {type:"build",label:"Build",title:"Rival-Aware Strategy Logic",tasks:[
+      {s:"todo",task:"Implement: relevant rival selection - closest car within 20s on different strategy or tyre age",out:"Rival selection logic"},
+      {s:"todo",task:"Implement: rival tyre age tracking across simulation laps",out:"Rival state tracking"},
+      {s:"todo",task:"Implement: undercut check using net_pit_value and gap_ahead",out:"Undercut viability function"},
+      {s:"todo",task:"Implement: overcut check - can we extend and be ahead when rival pits?",out:"Overcut viability function"},
+      {s:"todo",task:"Implement: cover rival pit - react immediately to neutralise undercut threat",out:"Cover decision function"},
+      {s:"todo",task:"Implement: Driver 2 as interference - holds rival in dirty air while Driver 1 pits",out:"Multi-driver coordination code"},
+      {s:"todo",task:"Write: payoff matrix for undercut / overcut / cover / split",out:"2x2 written payoff matrix for dissertation"}
+    ]},
+    {type:"build",label:"Build",title:"Weather-Driven Strategy",tasks:[
+      {s:"todo",task:"Confirm: FastF1 AirTemp, TrackTemp, Rainfall columns exist across 2018-2024",out:"Column verification"},
+      {s:"todo",task:"Compute: per-circuit rain probability from 2018-2026 Rainfall data",out:"Circuit rain probability table"},
+      {s:"todo",task:"Implement: crossover lap detection using Rainfall threshold and lap_time_delta",out:"Decision function"},
+      {s:"todo",task:"Implement: probabilistic rain injection in Monte Carlo loop",out:"Rain event injection"},
+      {s:"todo",task:"Validate: compare model crossover decisions against 3 real wet races",out:"Half page comparison with real outcomes"}
+    ]}
+  ]},
+  {week:12,dates:"12 Jul - 18 Jul",title:"Explainability Layer + Full System Integration",
+   sup:"End-to-end pipeline working. Human-readable explanation outputs for 3 race scenarios. Most impressive demo yet.",
+   tracks:[
+    {type:"build",label:"Build",title:"Explainability Layer",tasks:[
+      {s:"todo",task:"Design schema: recommended action / reasoning factors / trade-off / risk level / alternatives",out:"Schema written"},
+      {s:"todo",task:"Write 3 example explanations manually for real race scenarios BEFORE coding",out:"3 hand-written examples to guide implementation"},
+      {s:"todo",task:"Implement: factor attribution dict - log what triggered the recommendation",out:"Attribution populated during simulation"},
+      {s:"todo",task:"Implement: trade-off statement - pitting costs X seconds but gains Y expected positions",out:"String template using real simulation numbers"},
+      {s:"todo",task:"Implement: risk level from outcome distribution variance",out:"Risk scoring function"},
+      {s:"todo",task:"Implement: top 2 alternatives with rejection reason",out:"Alternative output"},
+      {s:"todo",task:"Run: 5 historical race scenarios - print full explanations",out:"5 readable outputs - screenshot for supervisor"}
+    ]},
+    {type:"build",label:"Build",title:"Full System Integration",tasks:[
+      {s:"todo",task:"Run full pipeline end to end: load race state, 1000 MC simulations, ranked strategies with explanations",out:"End-to-end working demo"},
+      {s:"todo",task:"Fix any integration bugs between modules",out:"Clean run with no errors"},
+      {s:"todo",task:"Time the full pipeline - how long does 1000 simulations take?",out:"Timing logged - optimise if over 2 minutes"}
+    ]}
+  ]},
+  {week:13,dates:"19 Jul - 25 Jul",title:"Validation - AI vs Real Team Strategies",
+   sup:"Master comparison table: AI strategy vs real team strategy for 5 historical races. Your headline result.",
+   tracks:[
+    {type:"validate",label:"Validate",title:"Historical Validation Against Real Races",tasks:[
+      {s:"todo",task:"Select 5 benchmark races: high-deg, SC intervention, wet race, undercut battle, double stack",out:"Race list with scenario labels"},
+      {s:"todo",task:"For each race: extract real team strategy from FastF1 - lap pitted, compound, final position",out:"Real strategy table"},
+      {s:"todo",task:"For each race: run AI system with real starting conditions",out:"AI recommended strategy per race"},
+      {s:"todo",task:"Compute: position delta - AI predicted position vs actual",out:"Delta per race"},
+      {s:"todo",task:"Compute: counterfactual - would AI strategy have been better or worse?",out:"Counterfactual position from simulation"},
+      {s:"todo",task:"Build master comparison table: race / real strategy / AI strategy / real result / AI prediction / delta",out:"The main results table for dissertation"},
+      {s:"todo",task:"Compute: mean position delta and percentage where AI matches or beats real team",out:"Two headline numbers for dissertation abstract"}
+    ]}
+  ]},
+  {week:14,dates:"26 Jul - 01 Aug",title:"Robustness Testing + Literature Review",
+   sup:"Robustness test sensitivity plots. Literature review draft to show academic progress alongside code work.",
+   tracks:[
+    {type:"build",label:"Build",title:"Robustness and Sensitivity Testing",tasks:[
+      {s:"todo",task:"Test: inject noise into tyre degradation input +/- 10% - does recommendation change?",out:"Noise sensitivity plot"},
+      {s:"todo",task:"Test: vary SC probability 0% to 50% at critical lap",out:"Strategy shift plot"},
+      {s:"todo",task:"Test: remove weather data column - does system handle missing data gracefully?",out:"Fallback behaviour confirmed"},
+      {s:"todo",task:"Test: swap driver profile to rookie archetype - how much does strategy change?",out:"Profile sensitivity plot"},
+      {s:"todo",task:"Write: where is the system fragile? What inputs is it most sensitive to?",out:"Honest limitations section"}
+    ]},
+    {type:"write",label:"Write",title:"Literature Review",tasks:[
+      {s:"todo",task:"Find 5 papers on F1 strategy optimisation or motorsport AI",out:"5 papers downloaded with brief annotation"},
+      {s:"todo",task:"Find 3 papers on Monte Carlo simulation for sports strategy",out:"3 papers downloaded with brief annotation"},
+      {s:"todo",task:"Find 3 papers on tyre degradation modelling",out:"3 papers downloaded"},
+      {s:"todo",task:"Find 2 papers on MDP and sequential decision making in sport",out:"2 papers downloaded"},
+      {s:"todo",task:"Write: draft literature review - 3-4 pages synthesising all papers",out:"Draft lit review - show supervisor"}
+    ]}
+  ]},
+  {week:15,dates:"02 Aug - 08 Aug",title:"Methodology Chapter + Results Chapter Draft",
+   sup:"Methodology chapter draft submitted to supervisor. Results chapter skeleton with real numbers and plots.",
+   tracks:[
+    {type:"write",label:"Write",title:"Methodology Chapter",tasks:[
+      {s:"todo",task:"Write: data collection section - FastF1 2018-2026, download process, cleaning steps",out:"Section written"},
+      {s:"todo",task:"Write: tyre degradation methodology - multiplier framework plus regression on top",out:"Section with model diagram"},
+      {s:"todo",task:"Write: MDP formulation section with your actual variable names",out:"Section with decision loop diagram"},
+      {s:"todo",task:"Write: Monte Carlo simulation design - why distributions, how many runs, what randomness",out:"Section written"},
+      {s:"todo",task:"Write: driver profile methodology - rookie archetypes vs data-calibrated profiles",out:"Section written - one of your strongest contributions"},
+      {s:"todo",task:"Write: explainability approach",out:"Section written"}
+    ]},
+    {type:"write",label:"Write",title:"Results Chapter",tasks:[
+      {s:"todo",task:"Insert: tyre model validation plots with captions",out:"Figures inserted with text references"},
+      {s:"todo",task:"Insert: master comparison table - AI vs real team strategies",out:"Table inserted with caption"},
+      {s:"todo",task:"Insert: robustness sensitivity plots",out:"Figures inserted"},
+      {s:"todo",task:"Write: 1 paragraph per result explaining what it shows",out:"Results narrative written"}
+    ]}
+  ]},
+  {week:16,dates:"09 Aug - 15 Aug",title:"Discussion, Limitations, and Full Draft Assembly",
+   sup:"Full dissertation now has all chapters in draft form. Discussion chapter written.",
+   tracks:[
+    {type:"write",label:"Write",title:"Discussion and Limitations",tasks:[
+      {s:"todo",task:"Write: discussion - what do validation results mean? Why is performance acceptable?",out:"Discussion section - 2-3 pages"},
+      {s:"todo",task:"Write: limitations - FastF1 data gaps 2018-2021, multiplier assumptions, no real-time data",out:"Limitations section - be honest, examiners respect this"},
+      {s:"todo",task:"Write: future work - real-time integration, RL approach, expanded driver data",out:"Future work section - 1 page"},
+      {s:"todo",task:"Write: conclusion - restate research question, summarise what you built and results",out:"Conclusion - 1 page"},
+      {s:"todo",task:"Assemble all chapters into one document - check flow and consistency",out:"Full draft dissertation"}
+    ]},
+    {type:"polish",label:"Polish",title:"System Polish and Edge Cases",tasks:[
+      {s:"todo",task:"Handle edge case: missing gap data for some laps",out:"Graceful fallback documented"},
+      {s:"todo",task:"Handle edge case: circuit not in taxonomy table",out:"Default values defined"},
+      {s:"todo",task:"Handle edge case: FastF1 cannot load a session",out:"Error handling confirmed"},
+      {s:"todo",task:"Write a README for your codebase: how to run the full pipeline from scratch",out:"README written - this impresses examiners"}
+    ]}
+  ]},
+  {week:17,dates:"16 Aug - 22 Aug",title:"Full Dissertation Draft Submitted to Supervisor",
+   sup:"Complete dissertation draft sent to supervisor for feedback. Key milestone meeting.",
+   tracks:[
+    {type:"write",label:"Write",title:"Full Draft Polish and Submission",tasks:[
+      {s:"todo",task:"Read entire dissertation in one sitting - flag anything that does not flow",out:"Revision list"},
+      {s:"todo",task:"Check: every figure and table has a caption and is referenced in the text",out:"Figure checklist complete"},
+      {s:"todo",task:"Check: all references are in the correct format for your institution",out:"Reference list complete"},
+      {s:"todo",task:"Check: abstract covers what you built, why, how, and what results you got",out:"Abstract written - 250-300 words"},
+      {s:"todo",task:"Send full draft to supervisor - ask for feedback on methodology and results specifically",out:"Draft submitted to supervisor"}
+    ]}
+  ]},
+  {week:18,dates:"23 Aug - 29 Aug",title:"Implement Supervisor Feedback",
+   sup:"Revised dissertation incorporating supervisor feedback. Show tracked changes.",
+   tracks:[
+    {type:"write",label:"Write",title:"Revisions from Supervisor Feedback",tasks:[
+      {s:"todo",task:"Go through supervisor feedback line by line - categorise as: easy fix / needs thinking / disagree",out:"Feedback categorisation list"},
+      {s:"todo",task:"Implement all easy fixes first - typos, clarifications, missing citations",out:"Quick fixes done"},
+      {s:"todo",task:"Implement methodology revisions if supervisor flagged gaps",out:"Methodology chapter updated"},
+      {s:"todo",task:"Implement results revisions - add plots or tables if asked for more evidence",out:"Results chapter updated"},
+      {s:"todo",task:"Re-read revised sections to confirm they address the feedback",out:"Revised draft complete"}
+    ]}
+  ]},
+  {week:19,dates:"30 Aug - 05 Sep",title:"Final Polish + Viva Preparation",
+   sup:"Near-final dissertation. Viva question list with full answers prepared.",
+   tracks:[
+    {type:"write",label:"Write",title:"Final Dissertation Polish",tasks:[
+      {s:"todo",task:"Final proofread - grammar, spelling, consistency of terminology throughout",out:"Clean document"},
+      {s:"todo",task:"Check all code references in text match your actual function and variable names",out:"Code-text consistency confirmed"},
+      {s:"todo",task:"Confirm page count and word count are within limits",out:"Within limits confirmed"}
+    ]},
+    {type:"write",label:"Viva Prep",title:"Viva Preparation",tasks:[
+      {s:"todo",task:"Write: 5 hardest questions an examiner might ask about your methodology",out:"Q and A sheet"},
+      {s:"todo",task:"Write: 5 questions about your results - why these numbers, what do they mean",out:"Q and A sheet"},
+      {s:"todo",task:"Prepare: 2-minute verbal summary of the entire project without notes - time yourself",out:"Rehearsed"},
+      {s:"todo",task:"Prepare: walk-through of your most interesting technical decision",out:"Rehearsed with real examples from your validation plots"}
+    ]}
+  ]},
+  {week:20,dates:"06 Sep - 26 Sep",title:"Buffer + Final Checks + SUBMIT",
+   sup:"SUBMITTED by 30 September 2025.",
+   tracks:[
+    {type:"write",label:"Final",title:"Final Checks and Submission",tasks:[
+      {s:"todo",task:"Run full pipeline one last time end to end - confirm everything still works",out:"Clean run confirmed"},
+      {s:"todo",task:"Export any final plots needed for dissertation at full resolution",out:"All figures finalised"},
+      {s:"todo",task:"Final reference check - every citation in text appears in reference list",out:"Reference audit complete"},
+      {s:"todo",task:"Format check: margins, font size, line spacing match institutional requirements",out:"Formatting confirmed"},
+      {s:"todo",task:"SUBMIT by 30 September 2025 - do not wait until the last day",out:"SUBMITTED"}
+    ]}
+  ]}
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FIREBASE — hardcoded config, auto-connects on load
+// ─────────────────────────────────────────────────────────────────────────────
+let db = null;
+const COLLECTION = "f1_progress";
+const DOC_ID = "tasks";
+const STREAK_DOC = "streak";
+const LOCAL_KEY = "f1_sprint_v2";
+const STREAK_KEY = "f1_streak_v2";
+
+let state = {};
+let streakData = { days: {}, streak: 0, lastDate: null };
+
+function todayStr() {
+  return new Date().toISOString().split("T")[0];
+}
+
+// Load local state first so UI is instant
+try { const s = localStorage.getItem(LOCAL_KEY);  if (s) state = JSON.parse(s); } catch(e){}
+try { const s = localStorage.getItem(STREAK_KEY); if (s) streakData = JSON.parse(s); } catch(e){}
+
+function saveLocal() {
+  try { localStorage.setItem(LOCAL_KEY,  JSON.stringify(state)); } catch(e){}
+  try { localStorage.setItem(STREAK_KEY, JSON.stringify(streakData)); } catch(e){}
+}
+
+async function pushToFirebase() {
+  if (!db) return;
+  try {
+    const { doc, setDoc } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
+    await setDoc(doc(db, COLLECTION, DOC_ID),    { state },     { merge: true });
+    await setDoc(doc(db, COLLECTION, STREAK_DOC), streakData,   { merge: true });
+  } catch(e) { console.error("Firebase push failed", e); }
+}
+
+function setSyncBadge(status) {
+  const b = document.getElementById("sync-badge");
+  b.className = "dash-sync " + (status === "ok" ? "sync-ok" : status === "loading" ? "sync-loading" : "sync-off");
+  b.textContent = status === "ok" ? "🟢 Synced" : status === "loading" ? "🟡 Connecting..." : "⚫ Offline";
+}
+
+// Auto-connect on load
+(async () => {
+  try {
+    setSyncBadge("loading");
+    const firebaseConfig = {
+      apiKey:            "AIzaSyAiaR_KguNDe1x-EqA9KEGW-kC2kHVkwi8",
+      authDomain:        "dissertation-7218a.firebaseapp.com",
+      projectId:         "dissertation-7218a",
+      storageBucket:     "dissertation-7218a.firebasestorage.app",
+      messagingSenderId: "518823039068",
+      appId:             "1:518823039068:web:bcedca1ca81fc93e38d699",
+      measurementId:     "G-HD5L24119P"
+    };
+    const { initializeApp }                        = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js");
+    const { getFirestore, doc, setDoc, onSnapshot } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
+
+    const app = initializeApp(firebaseConfig);
+    db = getFirestore(app);
+
+    // Real-time listener — task state
+    onSnapshot(doc(db, COLLECTION, DOC_ID), (snap) => {
+      if (snap.exists()) {
+        Object.assign(state, snap.data().state || {});
+        saveLocal();
+        reRenderAll();
+        updateDashboard();
+      }
+    });
+
+    // Real-time listener — streak
+    onSnapshot(doc(db, COLLECTION, STREAK_DOC), (snap) => {
+      if (snap.exists()) {
+        Object.assign(streakData, snap.data());
+        saveLocal();
+        renderStreakDots();
+        updateDashboard();
+      }
+    });
+
+    setSyncBadge("ok");
+
+    // Push any local-only changes that happened offline
+    await pushToFirebase();
+  } catch(err) {
+    setSyncBadge("off");
+    console.error("Firebase connection failed:", err);
+  }
+})();
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TASK STATE
+// ─────────────────────────────────────────────────────────────────────────────
+function taskId(wi, ti, mi) { return `${wi}_${ti}_${mi}`; }
+
+function isChecked(id, defaultDone) {
+  if (state[id] !== undefined) return state[id];
+  return defaultDone === true;
+}
+
+async function toggleTask(id, defaultDone, wi) {
+  const wasChecked = isChecked(id, defaultDone);
+  state[id] = !wasChecked;
+
+  // Update DOM
+  const cb  = document.getElementById("cb_" + id);
+  const txt = document.getElementById("tx_" + id);
+  const out = document.getElementById("ot_" + id);
+  if (cb)  { cb.classList.toggle("checked", state[id]); cb.textContent = state[id] ? "✓" : ""; }
+  if (txt) txt.classList.toggle("done-text", state[id]);
+  if (out) out.classList.toggle("done-out", state[id]);
+
+  // Celebration
+  if (state[id]) {
+    spawnConfetti(cb);
+    checkTaskMilestone(wi);
+  }
+
+  // Update streak
+  updateStreakForToday();
+
+  saveLocal();
+  updateProgress(wi);
+  updateDashboard();
+  await pushToFirebase();
+}
+
+function updateStreakForToday() {
+  const today = todayStr();
+  // Count tasks done today
+  let todayCount = 0;
+  SPRINTS.forEach((sprint, wi) => {
+    sprint.tracks.forEach((track, ti) => {
+      track.tasks.forEach((t, mi) => {
+        if (isChecked(taskId(wi, ti, mi), t.s === "done")) todayCount++;
+      });
+    });
+  });
+
+  const prev = streakData.days[today] || 0;
+  streakData.days[today] = todayCount;
+
+  // Recalculate streak
+  let streak = 0;
+  let d = new Date();
+  for (let i = 0; i < 365; i++) {
+    const ds = d.toISOString().split("T")[0];
+    if ((streakData.days[ds] || 0) >= 1) {
+      streak++;
+      d.setDate(d.getDate() - 1);
+    } else if (i === 0) {
+      // Today hasn't hit threshold yet — count yesterday's streak
+      d.setDate(d.getDate() - 1);
+    } else {
+      break;
+    }
+  }
+  streakData.streak = streak;
+  streakData.lastDate = today;
+  renderStreakDots();
+}
+
+function checkTaskMilestone(wi) {
+  const sprint = SPRINTS[wi];
+  const pct = sprintProgress(sprint, wi);
+  if (pct === 100) {
+    setTimeout(() => showToast(`Week ${sprint.week} complete! 🏁`, "🏎"), 300);
+  } else if (pct >= 50 && pct < 60) {
+    showToast("Halfway through this week!", "⚡");
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PROGRESS
+// ─────────────────────────────────────────────────────────────────────────────
+function sprintProgress(sprint, wi) {
+  let total = 0, done = 0;
+  sprint.tracks.forEach((track, ti) => {
+    track.tasks.forEach((t, mi) => {
+      total++;
+      if (isChecked(taskId(wi, ti, mi), t.s === "done")) done++;
+    });
+  });
+  return total === 0 ? 0 : Math.round(done / total * 100);
+}
+
+function totalProgress() {
+  let total = 0, done = 0;
+  SPRINTS.forEach((sprint, wi) => {
+    sprint.tracks.forEach((track, ti) => {
+      track.tasks.forEach((t, mi) => {
+        total++;
+        if (isChecked(taskId(wi, ti, mi), t.s === "done")) done++;
+      });
+    });
+  });
+  return { total, done, pct: total === 0 ? 0 : Math.round(done / total * 100) };
+}
+
+function updateProgress(wi) {
+  const sprint = SPRINTS[wi];
+  const pct = sprintProgress(sprint, wi);
+  const bar = document.getElementById("pb" + wi);
+  const txt = document.getElementById("pt" + wi);
+  const card = document.getElementById("wcard" + wi);
+  const num  = document.getElementById("wnum" + wi);
+  const badge= document.getElementById("wbadge" + wi);
+  if (bar) bar.style.width = pct + "%";
+  if (txt) txt.textContent = pct + "%";
+  if (pct === 100) {
+    card?.classList.add("week-done");
+    if (num) num.style.background = "var(--green)";
+    if (badge) badge.style.display = "inline-flex";
+  } else {
+    card?.classList.remove("week-done");
+    if (num) num.style.background = "#1565C0";
+    if (badge) badge.style.display = "none";
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DASHBOARD — collapse on scroll down, reveal on scroll up
+// ─────────────────────────────────────────────────────────────────────────────
+let dashOpen = true;
+let lastScrollY = 0;
+let scrollTicking = false;
+
+function toggleDash() {
+  dashOpen = !dashOpen;
+  const body = document.getElementById("dash-body");
+  const chev = document.getElementById("dash-chevron");
+  body.classList.toggle("open", dashOpen);
+  chev.classList.toggle("open", dashOpen);
+  const dash = document.getElementById("dashboard");
+  dash.style.transform = "translateY(0)"; // always visible when manually toggled
+}
+
+// Hide dashboard bar entirely on scroll down, bring it back on scroll up
+window.addEventListener("scroll", () => {
+  if (scrollTicking) return;
+  scrollTicking = true;
+  requestAnimationFrame(() => {
+    const currentY = window.scrollY;
+    const dash = document.getElementById("dashboard");
+    if (currentY > lastScrollY && currentY > 60) {
+      // Scrolling DOWN — hide the whole bar
+      dash.style.transform = "translateY(-100%)";
+    } else {
+      // Scrolling UP — show bar again
+      dash.style.transform = "translateY(0)";
+    }
+    lastScrollY = currentY;
+    scrollTicking = false;
+  });
+}, { passive: true });
+
+function updateDashboard() {
+  const { total, done, pct } = totalProgress();
+
+  // Ring
+  const circ = 2 * Math.PI * 26;
+  const offset = circ - (pct / 100) * circ;
+  const ring = document.getElementById("ring-fill");
+  const ringPct = document.getElementById("ring-pct");
+  if (ring) { ring.style.strokeDashoffset = offset; ring.style.stroke = pct >= 80 ? "#10b981" : pct >= 40 ? "#3b82f6" : "#f59e0b"; }
+  if (ringPct) ringPct.textContent = pct + "%";
+
+  const tasksDone = document.getElementById("overall-tasks-done");
+  const weeksDone = document.getElementById("overall-weeks-done");
+  if (tasksDone) tasksDone.textContent = `${done} / ${total} tasks`;
+  const wDone = SPRINTS.filter((s, wi) => sprintProgress(s, wi) === 100).length;
+  if (weeksDone) weeksDone.textContent = `${wDone} / 20 weeks done`;
+
+  // Schedule
+  const now = new Date();
+  const start = new Date("2025-04-26");
+  const end   = new Date("2025-09-30");
+  const totalDays  = (end - start) / 864e5;
+  const elapsedDays = Math.max(0, (now - start) / 864e5);
+  const expectedPct = Math.min(100, Math.round(elapsedDays / totalDays * 100));
+  const diff = pct - expectedPct;
+
+  const schedLabel = document.getElementById("sched-label");
+  const schedFill  = document.getElementById("sched-fill");
+  const schedSub   = document.getElementById("sched-sub");
+  if (schedLabel) {
+    if (diff >= 5) { schedLabel.textContent = "Ahead 🚀"; schedLabel.style.color = "var(--green)"; }
+    else if (diff >= -5) { schedLabel.textContent = "On track ✅"; schedLabel.style.color = "var(--blue)"; }
+    else { schedLabel.textContent = "Behind ⚠️"; schedLabel.style.color = "var(--red)"; }
+  }
+  if (schedFill) {
+    schedFill.style.width = Math.min(100, Math.abs(diff)) + "%";
+    schedFill.className = "schedule-fill " + (diff >= 5 ? "ahead" : diff >= -5 ? "ontarget" : "behind");
+  }
+  if (schedSub) schedSub.textContent = `Expected ${expectedPct}% · You're at ${pct}%`;
+
+  // Streak
+  const sv = document.getElementById("streak-val");
+  const ss = document.getElementById("streak-sub");
+  if (sv) sv.textContent = streakData.streak;
+  const todayCount = streakData.days[todayStr()] || 0;
+  const need = Math.max(0, 1 - todayCount);
+  if (ss) ss.textContent = need === 0 ? "Streak secured today 🔥" : "Tick any task to keep your streak alive";
+
+  // This week
+  const wIdx = getCurrentWeekIndex();
+  const tw = document.getElementById("this-week-pct");
+  const twl = document.getElementById("this-week-label");
+  const twb = document.getElementById("this-week-bar");
+  if (wIdx >= 0 && wIdx < SPRINTS.length) {
+    const wp = sprintProgress(SPRINTS[wIdx], wIdx);
+    if (tw) tw.textContent = wp + "%";
+    if (twl) twl.textContent = "Week " + SPRINTS[wIdx].week + " · " + SPRINTS[wIdx].dates;
+    if (twb) twb.style.width = wp + "%";
+  } else {
+    if (tw) tw.textContent = "—";
+    if (twl) twl.textContent = "Not started yet";
+  }
+}
+
+function getCurrentWeekIndex() {
+  const now = new Date();
+  for (let i = 0; i < SPRINTS.length; i++) {
+    const s = SPRINTS[i];
+    const parts = s.dates.split(" - ");
+    if (parts.length < 2) continue;
+    const parseDate = (str) => {
+      const months = {Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11};
+      const p = str.trim().split(" ");
+      return new Date(2025, months[p[1]], parseInt(p[0]));
+    };
+    try {
+      const ws = parseDate(parts[0]);
+      const we = parseDate(parts[1]);
+      we.setDate(we.getDate() + 1);
+      if (now >= ws && now <= we) return i;
+    } catch(e){}
+  }
+  return -1;
+}
+
+function renderStreakDots() {
+  const container = document.getElementById("streak-dots");
+  if (!container) return;
+  const days = [];
+  const d = new Date();
+  for (let i = 6; i >= 0; i--) {
+    const dd = new Date(d);
+    dd.setDate(d.getDate() - i);
+    days.push(dd.toISOString().split("T")[0]);
+  }
+  container.innerHTML = days.map(day => {
+    const n = streakData.days[day] || 0;
+    return `<div class="s-dot ${n >= 1 ? "hot" : "cold"}" title="${day}: ${n} tasks"></div>`;
+  }).join("");
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TOAST + CONFETTI
+// ─────────────────────────────────────────────────────────────────────────────
+let toastTimer = null;
+function showToast(msg, icon = "✓") {
+  const t = document.getElementById("toast");
+  document.getElementById("toast-msg").textContent = msg;
+  document.getElementById("toast-icon").textContent = icon;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 3000);
+}
+
+function spawnConfetti(el) {
+  if (!el) return;
+  const rect = el.getBoundingClientRect();
+  const colors = ["#10b981","#3b82f6","#f59e0b","#a855f7","#ef4444"];
+  for (let i = 0; i < 8; i++) {
+    const dot = document.createElement("div");
+    dot.className = "confetti-dot";
+    dot.style.cssText = `
+      left:${rect.left + Math.random() * 20 - 10}px;
+      top:${rect.top}px;
+      background:${colors[Math.floor(Math.random() * colors.length)]};
+      animation-delay:${Math.random() * 0.2}s;
+    `;
+    document.body.appendChild(dot);
+    setTimeout(() => dot.remove(), 1400);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FILTER
+// ─────────────────────────────────────────────────────────────────────────────
+let currentFilter = "all";
+
+function applyFilter(phase) {
+  currentFilter = phase;
+  document.querySelectorAll(".fbtn").forEach(b => {
+    b.classList.toggle("on", b.getAttribute("data-f") === phase);
+  });
+  document.querySelectorAll(".week-card").forEach(card => {
+    const phases = (card.getAttribute("data-phases") || "").split(",");
+    const show = phase === "all" || phases.includes(phase);
+    card.style.display = show ? "" : "none";
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TOGGLE WEEK
+// ─────────────────────────────────────────────────────────────────────────────
+function toggleWeek(wi) {
+  const body = document.getElementById("wb" + wi);
+  const chev = document.getElementById("wchev" + wi);
+  const isOpen = body.classList.contains("open");
+  body.classList.toggle("open", !isOpen);
+  if (chev) chev.classList.toggle("open", !isOpen);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RE-RENDER (after Firebase push)
+// ─────────────────────────────────────────────────────────────────────────────
+function reRenderAll() {
+  SPRINTS.forEach((sprint, wi) => {
+    sprint.tracks.forEach((track, ti) => {
+      track.tasks.forEach((t, mi) => {
+        const id = taskId(wi, ti, mi);
+        const checked = isChecked(id, t.s === "done");
+        const cb  = document.getElementById("cb_" + id);
+        const txt = document.getElementById("tx_" + id);
+        const out = document.getElementById("ot_" + id);
+        if (cb)  { cb.classList.toggle("checked", checked); cb.textContent = checked ? "✓" : ""; }
+        if (txt) txt.classList.toggle("done-text", checked);
+        if (out) out.classList.toggle("done-out", checked);
+      });
+    });
+    updateProgress(wi);
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RENDER
+// ─────────────────────────────────────────────────────────────────────────────
+const TYPE_BADGE = {
+  learn:"tb-learn", build:"tb-build", design:"tb-design",
+  write:"tb-write", validate:"tb-validate", polish:"tb-polish", final:"tb-final"
+};
+
+function render() {
+  const root = document.getElementById("root");
+  let html = "";
+
+  SPRINTS.forEach((sprint, wi) => {
+    const phases = [...new Set(sprint.tracks.map(t => t.type))];
+    const pct = sprintProgress(sprint, wi);
+    const isDone = pct === 100;
+
+    html += `<div class="week-card${isDone ? " week-done" : ""}" id="wcard${wi}" data-phases="${phases.join(",")}" style="animation-delay:${wi * 0.03}s">`;
+
+    // Header
+    html += `<div class="week-head" onclick="toggleWeek(${wi})">`;
+    html += `<span class="week-num" id="wnum${wi}" style="${isDone ? "background:var(--green)" : ""}">W${sprint.week}</span>`;
+    html += `<div class="week-info">`;
+    html += `<div class="week-title-txt">${sprint.title}</div>`;
+    html += `<div class="week-dates-txt">${sprint.dates}</div>`;
+    html += `</div>`;
+    html += `<div class="prog">`;
+    html += `<div class="prog-bar"><div class="prog-fill" id="pb${wi}" style="width:${pct}%"></div></div>`;
+    html += `<span class="prog-txt" id="pt${wi}">${pct}%</span>`;
+    html += `</div>`;
+    if (isDone) html += `<span class="done-badge" id="wbadge${wi}">DONE</span>`;
+    else html += `<span class="done-badge" id="wbadge${wi}" style="display:none">DONE</span>`;
+    html += `<span class="chev" id="wchev${wi}">▼</span>`;
+    html += `</div>`;
+
+    // Body
+    html += `<div class="week-body" id="wb${wi}">`;
+    html += `<div class="sup-box"><b>Show supervisor this week</b>${sprint.sup}</div>`;
+    html += `<div class="tracks">`;
+
+    sprint.tracks.forEach((track, ti) => {
+      const badge = TYPE_BADGE[track.type] || "tb-build";
+      html += `<div class="track">`;
+      html += `<div class="track-head"><span class="track-badge ${badge}">${track.label.toUpperCase()}</span><span class="track-title">${track.title}</span></div>`;
+
+      track.tasks.forEach((t, mi) => {
+        const id = taskId(wi, ti, mi);
+        const checked = isChecked(id, t.s === "done");
+        html += `<div class="task-item">`;
+        html += `<div class="task-row" onclick="toggleTask('${id}',${t.s === "done"},${wi})">`;
+        html += `<div class="cb${checked ? " checked" : ""}" id="cb_${id}">${checked ? "✓" : ""}</div>`;
+        html += `<span class="task-text${checked ? " done-text" : ""}" id="tx_${id}">${t.task}</span>`;
+        html += `</div>`;
+        html += `<div class="task-out${checked ? " done-out" : ""}" id="ot_${id}">Output: ${t.out}</div>`;
+        html += `</div>`;
+      });
+
+      html += `</div>`;
+    });
+
+    html += `</div></div></div>`;
+  });
+
+  root.innerHTML = html;
+}
+
+function buildFilterBar() {
+  const fb = document.getElementById("fbar");
+  [["all","All 20 Weeks"],["learn","Learn"],["build","Build"],["design","Design"],["write","Write"],["validate","Validate"]].forEach(([phase, label]) => {
+    const btn = document.createElement("button");
+    btn.className = "fbtn" + (phase === "all" ? " on" : "");
+    btn.textContent = label;
+    btn.setAttribute("data-f", phase);
+    btn.addEventListener("click", () => applyFilter(phase));
+    fb.appendChild(btn);
+  });
+}
+
+// Expose globals for inline handlers
+window.toggleWeek = toggleWeek;
+window.toggleTask = toggleTask;
+window.toggleDash = toggleDash;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────────────────────────────────────
+buildFilterBar();
+render();
+updateDashboard();
+renderStreakDots();
+updateStreakForToday();
+
+// Open dashboard body by default on load
+setTimeout(() => {
+  const body = document.getElementById("dash-body");
+  const chev = document.getElementById("dash-chevron");
+  body.classList.add("open");
+  chev.classList.add("open");
+  dashOpen = true;
+
+  // Adjust main padding to match open dashboard height
+  const dash = document.getElementById("dashboard");
+  document.getElementById("main").style.paddingTop = (dash.offsetHeight + 16) + "px";
+}, 100);
+
+// Auto-open current week
+const cw = getCurrentWeekIndex();
+if (cw >= 0) {
+  setTimeout(() => {
+    toggleWeek(cw);
+    document.getElementById("wcard" + cw)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, 500);
+}
+</script>
+</body>
+</html>
