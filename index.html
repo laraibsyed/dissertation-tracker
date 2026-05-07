@@ -307,7 +307,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   <div class="page-head">
     <div>
       <div class="page-title">Weekly Sprint Tracker</div>
-      <div class="page-meta">26 Apr – 30 Sep 2025 &nbsp;·&nbsp; FastF1 only, 2018–2026 &nbsp;·&nbsp; Every week has parallel tracks</div>
+      <div class="page-meta">27 Apr – 30 Sep 2025 &nbsp;·&nbsp; FastF1 only, 2018–2026 &nbsp;·&nbsp; Weeks 1–2 are theory-only</div>
     </div>
   </div>
 
@@ -323,45 +323,34 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 // SPRINT DATA
 // ─────────────────────────────────────────────────────────────────────────────
 const SPRINTS = [
-  {week:1,dates:"26 Apr - 02 May",title:"F1 Strategy Foundations + FastF1 First Contact",
-   sup:"FastF1 installed, first race session loaded, lap dataframe printed. 2-page strategy notes.",
+  {week:1,dates:"27 Apr - 02 May",title:"F1 Strategy Foundations — Theory",
+   sup:"2-page strategy notes covering: one-stop vs two-stop logic, undercut, overcut, race engineer decisions, track position value, DRS strategy, and tyre allocation principles.",
    tracks:[
     {type:"learn",label:"Learn",title:"F1 Strategy Basics",tasks:[
       {s:"todo",task:"Read: one-stop vs two-stop logic - why baseline strategies are chosen pre-race",out:"Half page written notes"},
       {s:"todo",task:"Read: undercut logic - plain English, no equations",out:"Half page written notes"},
       {s:"todo",task:"Read: overcut logic - when dirty air makes it powerful",out:"Half page written notes"},
       {s:"todo",task:"Write: list of ALL decisions a race engineer makes during a race",out:"Master decision list - becomes your MDP action space later"},
-      {s:"todo",task:"Read: track position value - Monaco vs Bahrain examples",out:"Half page notes with 3 circuit examples"}
-    ]},
-    {type:"build",label:"Build",title:"FastF1 Setup and First Data Exploration",tasks:[
-      {s:"todo",task:"Install FastF1: pip install fastf1",out:"Working install confirmed"},
-      {s:"todo",task:"Set up FastF1 cache directory with at least 50GB space",out:"Cache path configured"},
-      {s:"todo",task:"Load one race session e.g. Bahrain 2023 Race",out:"Session object loaded without errors"},
-      {s:"todo",task:"Print the laps dataframe - explore every column",out:"Annotated column list: what each column means"},
-      {s:"todo",task:"Print 5 rows of tyre/stint data - note compound and tyre_age columns",out:"Understanding of how FastF1 structures stint data"},
-      {s:"todo",task:"Plot: lap times over the race for one driver",out:"First chart - screenshot to show supervisor"}
+      {s:"todo",task:"Read: track position value - Monaco vs Bahrain examples",out:"Half page notes with 3 circuit examples"},
+      {s:"todo",task:"Read: DRS - detection points, activation zones, and when teams adjust pit timing around DRS windows",out:"Half page notes - feeds into lap time delta understanding and undercut timing"},
+      {s:"todo",task:"Read: pre-race tyre allocation - how teams select sets, how allocation constraints force strategy decisions",out:"Half page notes - context for why teams commit to certain compounds before the race"}
     ]}
   ]},
-  {week:2,dates:"03 May - 09 May",title:"SC/VSC Strategy + FastF1 Lap Extraction",
-   sup:"SC lap flagging working in code. Lap data extracted and saved as Parquet for one full race.",
+  {week:2,dates:"03 May - 11 May",title:"SC/VSC Strategy — Theory",
+   sup:"SC/VSC theory complete. Safety car decision logic understood. Real race case study done. Grid penalty and lapped traffic dynamics covered.",
    tracks:[
     {type:"learn",label:"Learn",title:"Safety Car, VSC, and Pit Timing Logic",tasks:[
       {s:"todo",task:"Read: why SC pit stops are cheap - the time math",out:"Written explanation with numbers"},
       {s:"todo",task:"Read: VSC vs SC - the mathematical difference in pit cost",out:"Side-by-side comparison table"},
       {s:"todo",task:"Write: pit both / pit one / pit none decision logic",out:"Decision tree sketch"},
       {s:"todo",task:"Read: what is a pit window? What is pit lane time loss?",out:"Definition + typical values per circuit type"},
-      {s:"todo",task:"Study 1 real race where SC changed the outcome e.g. Abu Dhabi 2021",out:"1-page case study: what happened, who benefited, why"}
-    ]},
-    {type:"build",label:"Build",title:"FastF1 Lap Extraction and SC Flagging",tasks:[
-      {s:"todo",task:"Write function: load_race_laps(year, circuit) using FastF1",out:"Clean reusable function"},
-      {s:"todo",task:"Filter: remove pit laps, SC laps (TrackStatus==4), VSC laps (TrackStatus==6), first lap",out:"Filtered DataFrame with row count logged"},
-      {s:"todo",task:"Flag SC laps: extract SC event table with start and end lap per SC period",out:"SC events DataFrame"},
-      {s:"todo",task:"Compute: lap_time_delta - each lap minus driver median on same compound at same circuit",out:"New column added and spot-checked"},
-      {s:"todo",task:"Save: one race as Parquet file to confirm storage pipeline works",out:"File saved and reloaded successfully"}
+      {s:"todo",task:"Study 1 real race where SC changed the outcome e.g. Abu Dhabi 2021",out:"1-page case study: what happened, who benefited, why"},
+      {s:"todo",task:"Read: grid penalties - how a back-of-grid start changes race strategy entirely versus starting at the front",out:"Half page notes with example: when to go aggressive early, when to sacrifice track position"},
+      {s:"todo",task:"Read: blue flag rules and lapped traffic - how backmarker traffic affects lap time delta and pit call timing",out:"Half page notes - feeds into simulation: how to model traffic disruption"}
     ]}
   ]},
-  {week:3,dates:"10 May - 16 May",title:"Tyre Theory Write-Up + Monte Carlo Toy Simulation",
-   sup:"Working Monte Carlo toy simulation with histogram chart. Tyre multiplier assumptions document written.",
+  {week:3,dates:"10 May - 16 May",title:"Tyre Theory Write-Up + FastF1 First Contact + Monte Carlo Toy Simulation",
+   sup:"FastF1 installed, first race session loaded, lap dataframe printed. Working Monte Carlo toy simulation with histogram chart. Tyre multiplier assumptions document written.",
    tracks:[
     {type:"learn",label:"Learn",title:"Tyre Degradation Theory - Write Up Your Multipliers",tasks:[
       {s:"done",task:"Tyre degradation multipliers per compound and circuit already defined",out:"DONE"},
@@ -369,6 +358,13 @@ const SPRINTS = [
       {s:"todo",task:"Write: physics reason behind each compound multiplier - thermal window, structure",out:"1 paragraph per compound"},
       {s:"todo",task:"Write: assumptions document - what does your multiplier model assume?",out:"1-page assumptions doc - critical for methodology chapter"},
       {s:"todo",task:"Cross-check: does Bahrain have higher multiplier than Monaco? Soft higher than Hard?",out:"Validation notes - update any multiplier that fails the sense-check"}
+    ]},
+    {type:"build",label:"Build",title:"FastF1 Setup and First Data Exploration",tasks:[
+      {s:"todo",task:"Install FastF1: pip install fastf1",out:"Working install confirmed"},
+      {s:"todo",task:"Load one race session e.g. Bahrain 2023 Race",out:"Session object loaded without errors"},
+      {s:"todo",task:"Print the laps dataframe - explore every column",out:"Annotated column list: what each column means"},
+      {s:"todo",task:"Print 5 rows of tyre/stint data - note compound and tyre_age columns",out:"Understanding of how FastF1 structures stint data"},
+      {s:"todo",task:"Plot: lap times over the race for one driver",out:"First chart - screenshot to show supervisor"}
     ]},
     {type:"build",label:"Build",title:"Monte Carlo Toy Simulation",tasks:[
       {s:"todo",task:"Read: plain-English Monte Carlo explainer - 30 minutes max",out:"Can explain it out loud in 2 sentences"},
@@ -378,8 +374,8 @@ const SPRINTS = [
       {s:"todo",task:"Write: 1 paragraph connecting this toy simulation to F1 strategy uncertainty",out:"Written connection - paste directly into dissertation intro"}
     ]}
   ]},
-  {week:4,dates:"17 May - 23 May",title:"FIA Regulations + MDP Formulation + Download Pipeline Starts",
-   sup:"MDP state/action/reward written up with diagram. Constraint table complete. Download pipeline running.",
+  {week:4,dates:"17 May - 23 May",title:"FIA Regulations + MDP Formulation + FastF1 Lap Extraction + Download Pipeline Starts",
+   sup:"SC lap flagging working in code. Lap data extracted and saved as Parquet for one full race. MDP state/action/reward written up with diagram. Constraint table complete. Download pipeline running.",
    tracks:[
     {type:"learn",label:"Learn",title:"FIA Regulations and MDP Theory",tasks:[
       {s:"todo",task:"Download 2024 FIA Sporting Regulations PDF",out:"PDF saved locally"},
@@ -388,6 +384,14 @@ const SPRINTS = [
       {s:"todo",task:"Read MDP intro - blog post or Sutton and Barto chapter 1",out:"Can explain state, action, reward, transition in your own words"},
       {s:"todo",task:"Write: your F1 MDP - state variables, action space, reward function with your actual variable names",out:"1-page written MDP formulation"},
       {s:"todo",task:"Draw: decision loop diagram - state in, action out, new state, reward",out:"Diagram - show supervisor"}
+    ]},
+    {type:"build",label:"Build",title:"FastF1 Lap Extraction, SC Flagging and Cloud Setup",tasks:[
+      {s:"todo",task:"Set up Google Cloud Storage bucket for race data - requires professor approval",out:"GCS bucket created, credentials configured, test upload and download confirmed"},
+      {s:"todo",task:"Write function: load_race_laps(year, circuit) using FastF1",out:"Clean reusable function"},
+      {s:"todo",task:"Filter: remove pit laps, SC laps (TrackStatus==4), VSC laps (TrackStatus==6), first lap",out:"Filtered DataFrame with row count logged"},
+      {s:"todo",task:"Flag SC laps: extract SC event table with start and end lap per SC period",out:"SC events DataFrame"},
+      {s:"todo",task:"Compute: lap_time_delta - each lap minus driver median on same compound at same circuit",out:"New column added and spot-checked"},
+      {s:"todo",task:"Save: one race as Parquet file to confirm storage pipeline works",out:"File saved and reloaded successfully"}
     ]},
     {type:"build",label:"Build",title:"Full Season Download Pipeline",tasks:[
       {s:"todo",task:"Write download loop: for each season 2018-2026, for each race, load and cache session",out:"Download script with retry logic and progress logging"},
@@ -934,7 +938,7 @@ function updateDashboard() {
 
   // Schedule
   const now = new Date();
-  const start = new Date("2025-04-26");
+  const start = new Date("2025-04-27");
   const end   = new Date("2025-09-30");
   const totalDays  = (end - start) / 864e5;
   const elapsedDays = Math.max(0, (now - start) / 864e5);
